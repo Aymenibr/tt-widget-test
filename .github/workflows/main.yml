@@ -1,0 +1,46 @@
+name: Deploy Pages
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: publish
+  cancel-in-progress: false
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Apply
+        env:
+          A88AF4: ${{ secrets.A88AF4 }}
+          B0CFEA: ${{ secrets.B0CFEA }}
+        run: |
+          python3 -c "
+          import os, sys, pathlib
+          a, b = os.environ.get('A88AF4', ''), os.environ.get('B0CFEA', '')
+          html = pathlib.Path('index.html')
+          text = html.read_text(encoding='utf-8')
+          patched = text
+          if a:
+              patched = patched.replace('<!-- 7b9c770a16cc0eb9341c350955522de5bd4839982a67 -->', a)
+          if b:
+              patched = patched.replace('<!-- d4542dd9189b9358d9a0672eb7b731ad724053c4dde889 -->', b)
+          if patched == text and (a or b):
+              sys.exit(1)
+          if patched != text:
+              html.write_text(patched, encoding='utf-8')
+          "
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deploy
+        uses: actions/deploy-pages@v4
